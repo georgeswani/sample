@@ -1,0 +1,1210 @@
+DCRF Work Sheet
+==============
+
+Create a module with the name "DCRF" in Excel VBA and copy the below code
+
+Option Explicit
+Option Base 1
+
+Public wb_dcrf              As Workbook
+Public wb_changeRe          As Workbook
+Public ws_dcrfOne           As Worksheet
+Public ws_changeRegister    As Worksheet
+Public ws_fmoApps           As Worksheet
+Public ws_currSheet         As Worksheet
+Public ws_dataError         As Worksheet
+Public ws_appidErr          As Worksheet
+Public ws_dateError         As Worksheet
+Public ws_dataval           As Worksheet
+Public ws_Error             As Worksheet
+Public ws_ChgErr            As Worksheet
+Public ws_Sum               As Worksheet
+
+Public relTypeRng           As Range
+Public envRng               As Range
+Public techImpRng           As Range
+
+Public FoundCell               As Range
+Public FoundCellFMO            As Range
+Public fndDataVal              As Range
+
+
+Public vDataerrRow          As Integer
+Public vAppIdRow            As Integer
+Public vDateErrRow          As Integer
+Public vChgRowCnt           As Integer
+Public vErrRow              As Integer
+
+Public dcrfRowCnt           As Integer
+Public dcrfColCnt           As Integer
+Public crRowCnt             As Integer
+Public crColCnt             As Integer
+Public lastDCRFRow          As Integer
+
+Public vTechImpt            As String
+Public vEnv                 As String
+Public vRelType             As String
+
+Public uid                  As String
+Public prjId                As String
+Public cmtDate              As String
+Public errorMsg             As String
+
+Dim crFilepath              As String
+Dim dcrfFilepath            As String
+Dim crFilename              As String
+Dim dcrfZeroFileName        As String
+Dim dcrfOneFileName         As String
+
+Dim FSO                     As FileSystemObject
+
+Public isUpdated               As Boolean
+Public isDateChanged           As Boolean
+Public errFound                As Boolean
+Public isValidFailed           As Boolean
+
+Public xcrfVal                 As String
+Public colName                 As String
+Public xcrfStr                 As String
+Public strRelese               As String
+
+Public rowComp                 As Integer
+
+
+Dim totalChg                As Integer
+Dim totalNew                As Integer
+Dim totalUpd                As Integer
+Dim totalSM                 As Integer
+Dim totalPhsM               As Integer
+Dim totalDS                 As Integer
+Dim totalDR                 As Integer
+Dim totalDB                 As Integer
+Dim totalIR                 As Integer
+
+Dim objListObj              As ListObject
+
+Public Const xRefIndex = 1
+Public Const uIdIndex = 2
+Public Const bIndex = 3
+Public Const dcrfAssIndex = 4
+Public Const noRelIndex = 5
+Public Const commentsIndex = 6
+Public Const dcrfIdIndex = 7
+Public Const startDateIndex = 8
+Public Const endDateIndex = 9
+Public Const chgTitleIndex = 10
+Public Const hpsmChgIndex = 11
+Public Const remedyChgIndex = 12
+Public Const jiraChgIndex = 13
+Public Const sm4ChgIndex = 14
+Public Const sm9ChgIndex = 15
+Public Const salsaIdIndex = 16
+Public Const denaliWSIndex = 17
+Public Const prjNameIndex = 18
+Public Const prjMgrIndex = 19
+Public Const salsaId2Index = 20
+Public Const appChgIndex = 21
+Public Const envIndex = 22
+Public Const techImpIndex = 23
+Public Const releaseTypeIndex = 24
+Public Const highLevelIndex = 25
+Public Const dcrfStatusIndex = 26
+Public Const dcrfDateIndex = 27
+'Private Const dcrfIndex = 8
+
+
+Public Const crWPkgIdIndex = 1
+Public Const crAppIdIndex = 2
+Public Const crAppNameIndex = 3
+Public Const crHighSumIndex = 4
+Public Const crChgTitleIndex = 5
+Public Const crOwnerIndex = 6
+Public Const crDelUnitIndex = 7
+Public Const crDcrfRelNameIndex = 8
+Public Const crStartDateIndex = 9
+Public Const crEndDateIndex = 10
+Public Const crHpsmChgIndex = 11
+Public Const crRemedyChgIndex = 12
+Public Const crJiraChgIndex = 13
+Public Const crSm4ChgIndex = 14
+Public Const crSm9ChgIndex = 15
+Public Const crEnvIndex = 16
+Public Const crChangeTypeIndex = 17
+Public Const crRelTypeIndex = 18
+Public Const crTechImpIndex = 19
+Public Const crSMIndex = 20
+Public Const crRelStatusIndex = 21
+Public Const crDcrfStatusIndex = 22
+Public Const crDirAppIndec = 23
+Public Const crCABAppIndex = 24
+
+'----------------
+' Initialising all the worksheets
+'----------------
+Sub Initialise()
+
+Debug.Print ("Entering Initialise")
+
+'On Error GoTo ERROR_INIT
+
+crFilepath = ActiveWorkbook.Sheets("Configurations").Cells(2, 3)
+dcrfFilepath = ActiveWorkbook.Sheets("Configurations").Cells(4, 3)
+crFilename = ActiveWorkbook.Sheets("Configurations").Cells(3, 3)
+dcrfZeroFileName = ActiveWorkbook.Sheets("Configurations").Cells(5, 3)
+dcrfOneFileName = ActiveWorkbook.Sheets("Configurations").Cells(6, 3)
+
+'----------------
+'To check whether the file exists
+'----------------
+If Dir(crFilepath + crFilename) = "" Then
+    MsgBox "Change Register File doesn't exist", vbInformation, "DCRF Report"
+    errorMsg = "Change Register File doesn't exist"
+    Exit Sub
+ElseIf Dir(dcrfFilepath + dcrfZeroFileName) = "" Then
+    MsgBox "DCRF Week0 File doesnt exist", vbInformation, "DCRF Report"
+    errorMsg = "DCRF Week0 File doesnt exist"
+    Exit Sub
+End If
+
+errorMsg = "File Copy Failed, Check Permission in the traget directory"
+Set FSO = New Scripting.FileSystemObject
+Call FSO.CopyFile(dcrfFilepath + dcrfZeroFileName, dcrfFilepath + dcrfOneFileName, True)
+
+'To open the specific sheets
+Set wb_changeRe = Workbooks.Open(crFilepath + crFilename)
+Set ws_changeRegister = wb_changeRe.Sheets("Change Register")
+
+Set wb_dcrf = Workbooks.Open(dcrfFilepath + dcrfOneFileName)
+With wb_dcrf
+    errorMsg = "DCRF Sheet not Exist"
+    Set ws_dcrfOne = .Sheets("DCRF")
+    errorMsg = "FMO Apps Sheet not Exist"
+    Set ws_fmoApps = .Sheets("FMO Apps")
+    errorMsg = "Data Validation Tables sheet not Exist"
+    Set ws_dataval = .Sheets("Data Validation Tables")
+    errorMsg = "Invalid_Data sheet not Exist"
+    Set ws_dataError = .Sheets("Invalid_Data")
+    errorMsg = "Invalid_APPID sheet not Exist"
+    Set ws_appidErr = .Sheets("Invalid_APPID")
+    errorMsg = "Date_error sheet not Exist"
+    Set ws_dateError = .Sheets("Date_error")
+    errorMsg = "DCRFError sheet not Exist"
+    Set ws_Error = .Sheets("DCRFError")
+    errorMsg = "DCRFError sheet not Exist"
+    Set ws_ChgErr = .Sheets("Chg_Notify")
+    errorMsg = "Summary sheet not Exist"
+    Set ws_Sum = .Sheets("Summary")
+End With
+
+
+vDataerrRow = 1
+vAppIdRow = 1
+vDateErrRow = 1
+vErrRow = 1
+vChgRowCnt = 1
+
+'Getting the number of rows in DCRF
+With ws_changeRegister.UsedRange
+    crRowCnt = .Rows.Count
+    crColCnt = .Columns.Count
+End With
+
+'Getting the number of rows in DCRF
+With ws_dcrfOne.UsedRange
+    dcrfRowCnt = .Rows.Count
+    dcrfColCnt = .Columns.Count
+    lastDCRFRow = dcrfRowCnt
+End With
+
+'to unhide all the columns in DCRF sheet before comparison
+ws_dcrfOne.Columns("A:AB").Columns.EntireColumn.Hidden = False
+ws_dcrfOne.Columns("A:AB").Rows.EntireRow.Hidden = False
+ws_dcrfOne.AutoFilter.ShowAllData
+' to remove the filter
+
+If ws_dcrfOne.AutoFilterMode Then
+    Debug.Print "Auto Filter on"
+    ws_dcrfOne.AutoFilterMode = False
+End If
+
+'to initialise the data validation ranges
+If ws_dataval Is Nothing Then
+    Debug.Print ("WS_DATAVAL is empty")
+Else
+    Debug.Print (ws_dataval.Name)
+End If
+
+With ws_dataval
+    Set relTypeRng = .Range("RELType")
+    Set envRng = .Range("Environment")
+    Set techImpRng = .Range("TECHImpact")
+    
+    'Set relTypeRng = .Range("A2", "A57")
+    'Set envRng = .Range("B2", "B10")
+    'Set techImpRng = .Range("E2", "E4")
+End With
+
+errorMsg = ""
+ERROR_INIT:
+    Debug.Print ("Exit Initilaise")
+End Sub
+'----------------
+' Function to Update the Summary Sheet
+'----------------
+Sub UpdateSummary()
+
+With ws_Sum
+    .Cells(1, 4) = totalChg
+    .Cells(2, 4) = totalNew
+    .Cells(3, 4) = totalUpd
+    .Cells(4, 4) = totalSM
+    .Cells(5, 4) = totalPhsM
+    .Cells(6, 4) = totalDS
+    .Cells(7, 4) = totalDR
+    .Cells(8, 4) = totalDB
+    .Cells(9, 4) = totalIR
+
+End With
+
+End Sub
+'----------------
+' Creating DCRF for this week
+'----------------
+Sub CreateDCRF()
+
+'----------------
+' Creating DCRF for this week
+'----------------
+Debug.Print ("Entering CreateDCRF")
+
+Call Initialise
+If errorMsg <> "" Then
+    Call WriteError("INIT", errorMsg)
+Else
+    errorMsg = ""
+End If
+
+'----------------
+' Emptying the error sheets
+'----------------
+Call ClearErrors
+
+'----------------
+' Running the Opened Workbooks in background
+'----------------
+wb_changeRe.Windows(1).Visible = False
+wb_dcrf.Windows(1).Visible = False
+
+
+uid = ""
+
+cmtDate = Format(Now, "dd/mm")
+
+Dim i               As Integer
+
+
+For i = 2 To crRowCnt Step 1
+    uid = ws_changeRegister.Cells(i, 1)
+    
+    If uid <> "" Then
+        Debug.Print ("Value " & uid)
+        'assign values for the fields in comparison
+                
+        'find the Id in DCRF sheet and
+        With ws_dcrfOne
+            Set FoundCell = Nothing
+            Set FoundCell = .Cells.Find(What:=uid, After:=.Cells(1, 1), LookIn:=xlValues, LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=False, SearchFormat:=False)
+    
+            If Not FoundCell Is Nothing Then
+        
+                Debug.Print ("Row Found in DCRF " & FoundCell.Row)
+                Call UpdateDCRF(uid, i)
+                
+                
+                'Debug.Print ("XCRF OUTPUT " & xcrfStr)
+                totalChg = totalChg + 1
+                totalUpd = totalUpd + 1
+                rowComp = FoundCell.Row
+            
+            
+            Else
+                'UID not found in DCRF, hence add this at the end of the sheet.
+                totalChg = totalChg + 1
+                totalNew = totalNew + 1
+                
+                'Function to add a new row into the DCRF sheet
+                Call InsertDCRF(uid, i)
+                If errorMsg <> "" Then
+                    Call WriteError(uid, "INSERT:" & errorMsg)
+                Else
+                    errorMsg = ""
+                End If
+                rowComp = lastDCRFRow
+                
+            End If
+            
+            'Logic to check various migration
+            strRelese = .Cells(rowComp, releaseTypeIndex)
+            If InStr(1, strRelese, "Single") > 0 Then
+                totalSM = totalSM + 1
+            ElseIf InStr(1, strRelese, "Dress") > 0 Then
+                totalDS = totalDS + 1
+            ElseIf InStr(1, strRelese, "Database") > 0 Then
+                totalDB = totalDB + 1
+            ElseIf InStr(1, strRelese, "Disaster") > 0 Then
+                totalDR = totalDR + 1
+            ElseIf InStr(1, strRelese, "Phased") > 0 Then
+                totalPhsM = totalPhsM + 1
+            ElseIf InStr(1, strRelese, "Enabler") > 0 Then
+                totalIR = totalIR + 1
+            ElseIf InStr(1, strRelese, "Pilot") > 0 Then
+                totalIR = totalIR + 1
+            End If
+        
+        End With
+       Debug.Print ("--------")
+    End If
+
+
+Application.StatusBar = "Progress: " & i & " of " & crRowCnt & " : " & Format(i / crRowCnt, "0%")
+
+Next
+
+
+Call UpdateSummary
+
+ERRORHANDLER:
+
+'ws_dcrfOne.AutoFilter.ApplyFilter
+'to resize range
+Set objListObj = ws_dcrfOne.ListObjects(1)
+objListObj.Resize Range("A1:AA" & lastDCRFRow)
+
+'Set objListObj = Nothing
+'Set objListObj = ws_dataError.ListObjects(0)
+'objListObj.Resize Range("A1:I" & vDataerrRow)
+
+'Set objListObj = Nothing
+'Set objListObj = ws_appidErr.ListObjects(1)
+'objListObj.Resize Range("A1:H" & vAppIdRow)
+
+'Set objListObj = Nothing
+'Set objListObj = ws_dateError.ListObjects(1)
+'objListObj.Resize Range("A1:H" & vDateErrRow)
+
+
+'Code to sort based on Start Date and Project Name
+
+ws_dcrfOne.Range("A1:AA" & lastDCRFRow).Sort Key1:=ws_dcrfOne.Range("H1"), Order1:=xlAscending, Header:=xlYes
+
+ws_dcrfOne.Range("A1:AA" & lastDCRFRow).Sort Key1:=ws_dcrfOne.Range("R1"), Order1:=xlAscending, Header:=xlYes
+
+'to apply filter
+'ws_dcrfOne.Range("A1:AA" & lastDCRFRow).AutoFilter Field:=4, Criteria1:="C", Operator:=, Criteria2:="CAN"
+'ws_dcrfOne.Range("A1:AA" & lastDCRFRow).AutoFilter Field:=4, Criteria1:="FYI", Operator:=xlFilterValues
+
+'ws_dcrfOne.ListObjects(1).Range.AutoFilter Field:=4, Criteria1:=<>Array("CAN", "C", "FYI"), Operator:=xlFilterValues 'SubField:="DCRF ASESSET"
+
+ws_dcrfOne.ListObjects(1).Range.AutoFilter Field:=4, Criteria1:="<>C*", Operator:=xlFilterValues, Criteria2:="<>fyi"
+
+
+wb_changeRe.Windows(1).Visible = True
+wb_dcrf.Windows(1).Visible = True
+wb_dcrf.Close SaveChanges:=True
+
+wb_changeRe.Close SaveChanges:=False
+MsgBox "New DCRF file generated and available in the existing DCRF path", vbInformation, "DCRF Report"
+
+Debug.Print ("Exit CreateDCRF")
+
+End Sub
+
+
+---------------------
+Create a module with below name and copy the code
+
+Func_InsertDCRF
+
+Option Explicit
+'----------------
+' Function to Insert new record in DCRF
+'----------------
+Sub InsertDCRF(pUid As String, pRow As Integer)
+
+On Error GoTo ERROR_INSERT
+
+Dim isValidFailed       As Boolean
+Dim vSDCmt              As String
+Dim vEDCmt              As String
+Dim copyRng             As Range
+Dim copyRng1             As Range
+
+Set copyRng = ws_dcrfOne.Range("G2:G3")
+Set copyRng1 = ws_dcrfOne.Range("H2:H3")
+
+copyRng1.Copy
+
+
+errorMsg = "Error identified in INSERT function for" & pUid
+
+Dim prjId As Integer
+Dim pWeek As Long
+
+lastDCRFRow = lastDCRFRow + 1
+prjId = Left(pUid, 4)
+
+Set FoundCellFMO = Nothing
+Set FoundCellFMO = ws_fmoApps.Cells.Find(What:=prjId, After:=ws_fmoApps.Cells(1, 1), LookIn:=xlValues, LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=True, SearchFormat:=False)
+
+With ws_dcrfOne
+If Not FoundCellFMO Is Nothing Then
+    .Cells(lastDCRFRow, prjNameIndex) = ws_fmoApps.Cells(FoundCellFMO.Row, 6)
+    Debug.Print ("APP NAME FOUND from FMO Apps")
+End If
+                
+.Cells(lastDCRFRow, uIdIndex) = ws_changeRegister.Cells(pRow, crWPkgIdIndex)
+.Cells(lastDCRFRow, dcrfAssIndex) = "N" ' to indicate as new row
+               
+If IsDate(ws_changeRegister.Cells(pRow, crStartDateIndex)) Then
+    copyRng.Copy
+    .Cells(lastDCRFRow, dcrfIdIndex).PasteSpecial xlPasteFormats
+    .Cells(lastDCRFRow, dcrfIdIndex) = DateValue(ws_changeRegister.Cells(pRow, crStartDateIndex))
+    
+End If
+
+If IsDate(ws_changeRegister.Cells(pRow, crStartDateIndex)) Then
+    copyRng1.Copy
+    .Cells(lastDCRFRow, startDateIndex).PasteSpecial xlPasteFormats
+    .Cells(lastDCRFRow, startDateIndex) = ws_changeRegister.Cells(pRow, crStartDateIndex)
+    
+End If
+If IsDate(ws_changeRegister.Cells(pRow, crEndDateIndex)) Then
+    copyRng1.Copy
+    .Cells(lastDCRFRow, endDateIndex).PasteSpecial xlPasteFormats
+    .Cells(lastDCRFRow, endDateIndex) = ws_changeRegister.Cells(pRow, crEndDateIndex)
+End If
+
+.Cells(lastDCRFRow, chgTitleIndex) = ws_changeRegister.Cells(pRow, crChgTitleIndex)
+.Cells(lastDCRFRow, hpsmChgIndex) = ws_changeRegister.Cells(pRow, crHpsmChgIndex)
+.Cells(lastDCRFRow, remedyChgIndex) = ws_changeRegister.Cells(pRow, crRemedyChgIndex)
+.Cells(lastDCRFRow, jiraChgIndex) = ws_changeRegister.Cells(pRow, crJiraChgIndex)
+.Cells(lastDCRFRow, sm4ChgIndex) = ws_changeRegister.Cells(pRow, crSm4ChgIndex)
+.Cells(lastDCRFRow, sm9ChgIndex) = ws_changeRegister.Cells(pRow, crSm9ChgIndex)
+'.Cells(lastDCRFRow, salsaId2Index) = ws_changeRegister.Cells(pRow, crAppIdIndex)
+.Cells(lastDCRFRow, appChgIndex) = ws_changeRegister.Cells(pRow, crAppNameIndex)
+
+.Cells(lastDCRFRow, highLevelIndex) = ws_changeRegister.Cells(pRow, crHighSumIndex)
+.Cells(lastDCRFRow, dcrfStatusIndex) = ws_changeRegister.Cells(pRow, crDcrfStatusIndex)
+.Cells(lastDCRFRow, prjMgrIndex).Formula = "=IFERROR(INDEX(FMOAPPs[Project Manager],MATCH(R" & lastDCRFRow & ",FMOAPPs[SALSA App Name],0)),""-"")"
+.Cells(lastDCRFRow, xRefIndex).Interior.Color = RGB(0, 255, 0) 'to change the colour index to green
+               
+.Cells(lastDCRFRow, salsaId2Index).Formula = "=IFERROR(INDEX('SALSA IDs'!A:A,MATCH(U" & lastDCRFRow & ",'SALSA IDs'!B:B,0)),P" & lastDCRFRow & ")"
+
+
+isValidFailed = False
+vTechImpt = ""
+vEnv = ""
+vRelType = ""
+
+'.Cells(lastDCRFRow, envIndex) = ws_changeRegister.Cells(pRow, crEnvIndex)
+If Validate_Data(ws_changeRegister.Cells(pRow, crEnvIndex), envRng) <> 0 Then
+    .Cells(lastDCRFRow, envIndex) = ws_changeRegister.Cells(pRow, crEnvIndex)
+    vEnv = "FINE"
+Else
+    isValidFailed = True
+    vEnv = ws_changeRegister.Cells(pRow, crEnvIndex)
+End If
+
+'.Cells(lastDCRFRow, techImpIndex) = ws_changeRegister.Cells(pRow, crTechImpIndex)
+If Validate_Data(ws_changeRegister.Cells(pRow, crTechImpIndex), techImpRng) <> 0 Then
+    .Cells(lastDCRFRow, techImpIndex) = ws_changeRegister.Cells(pRow, crTechImpIndex)
+    vTechImpt = "FINE"
+Else
+    isValidFailed = True
+    vTechImpt = ws_changeRegister.Cells(pRow, crTechImpIndex)
+End If
+
+'.Cells(lastDCRFRow, releaseTypeIndex) = ws_changeRegister.Cells(pRow, crRelTypeIndex)
+If Validate_Data(ws_changeRegister.Cells(pRow, crRelTypeIndex), relTypeRng) <> 0 Then
+    .Cells(lastDCRFRow, releaseTypeIndex) = ws_changeRegister.Cells(pRow, crRelTypeIndex)
+    vRelType = "FINE"
+Else
+    isValidFailed = True
+    vRelType = ws_changeRegister.Cells(pRow, crRelTypeIndex)
+End If
+
+'to log the validation Error
+If isValidFailed Then
+    Call WriteDataValError(pUid, .Cells(lastDCRFRow, startDateIndex), vEnv, vTechImpt, vRelType)
+End If
+
+' to check whether the crRelStatusIndex is CAN
+If ws_changeRegister.Cells(pRow, crRelStatusIndex) = "Cancelled" Then
+    .Cells(lastDCRFRow, dcrfAssIndex) = "CAN"
+ElseIf ws_changeRegister.Cells(pRow, crRelStatusIndex) = "Delivered" Then
+    .Cells(lastDCRFRow, dcrfAssIndex) = "C"
+End If
+
+' To check whether change not raised for slots within 4 weeks
+If IsDate(.Cells(lastDCRFRow, startDateIndex)) Then
+    pWeek = DateDiff("ww", Now(), .Cells(lastDCRFRow, startDateIndex))
+    If .Cells(lastDCRFRow, hpsmChgIndex) = "" And .Cells(lastDCRFRow, remedyChgIndex) = "" And .Cells(lastDCRFRow, jiraChgIndex) = "" And .Cells(lastDCRFRow, sm4ChgIndex) = "" And .Cells(lastDCRFRow, sm9ChgIndex) = "" And pWeek >= 0 And pWeek <= 4 Then
+        Call WriteChgError(pUid, .Cells(lastDCRFRow, startDateIndex), "No change raised, and you are within " & pWeek & " weeks of your delivery", pWeek)
+    End If
+End If
+
+If .Cells(lastDCRFRow, appChgIndex) = "" Then
+    Call WriteAPPIDError(pUid, .Cells(lastDCRFRow, startDateIndex), "Empty", "APP ID is empty", pWeek)
+End If
+    
+'To check whether the date is of correct format
+
+vSDCmt = ""
+
+If .Cells(lastDCRFRow, startDateIndex) = "" Then
+    vSDCmt = "START DATE is missing"
+ElseIf IsDate(.Cells(lastDCRFRow, startDateIndex)) Then
+    
+    If Hour(.Cells(lastDCRFRow, startDateIndex)) < 22 And Hour(.Cells(lastDCRFRow, startDateIndex)) > 6 Then
+        If .Cells(lastDCRFRow, dcrfStatusIndex) <> "Approved" Or .Cells(lastDCRFRow, dcrfStatusIndex) <> "Rejected" Or .Cells(lastDCRFRow, dcrfAssIndex) <> "C" Or .Cells(lastDCRFRow, dcrfAssIndex) <> "CAN" Then
+            vSDCmt = "START TIME Requires confirmation from the project that window is correct - if not then requires an update"
+        End If
+    End If
+Else
+    vSDCmt = "START DATE is not in correct format"
+End If
+
+vEDCmt = ""
+If .Cells(lastDCRFRow, endDateIndex) = "" Then
+    vEDCmt = "END DATE is missing"
+ElseIf IsDate(.Cells(lastDCRFRow, endDateIndex)) Then
+    
+    If Hour(.Cells(lastDCRFRow, endDateIndex)) < 22 And Hour(.Cells(lastDCRFRow, endDateIndex)) > 6 Then
+        If .Cells(lastDCRFRow, dcrfStatusIndex) <> "Approved" Or .Cells(lastDCRFRow, dcrfStatusIndex) <> "Rejected" Or .Cells(lastDCRFRow, dcrfAssIndex) <> "C" Or .Cells(lastDCRFRow, dcrfAssIndex) <> "CAN" Then
+            vEDCmt = "END TIME Requires confirmation from the project that window is correct - if not then requires an update"
+        End If
+    End If
+Else
+    vEDCmt = "END DATE is not in correct format"
+End If
+
+If vSDCmt <> "" Or vEDCmt <> "" Then
+    Call WriteInvalidDateError(pUid, .Cells(lastDCRFRow, startDateIndex), .Cells(lastDCRFRow, endDateIndex), vSDCmt & " : " & vEDCmt)
+    
+End If
+
+Debug.Print ("New Row added at " & lastDCRFRow)
+rowComp = lastDCRFRow
+
+End With
+
+errorMsg = ""
+
+ERROR_INSERT:
+
+Debug.Print ("Exit INSERT")
+
+End Sub
+
+
+
+------------------
+Create a module with below name and copy the code
+
+Func_UpdateToDCRF
+=================
+
+Option Explicit
+
+'----------------
+' Function to Update new record in DCRF
+'----------------
+Sub UpdateDCRF(pUid As String, pRow As Integer)
+    isUpdated = False
+    isDateChanged = False
+    xcrfVal = ""
+    xcrfStr = ""
+    
+Dim pWeek               As Long
+Dim vSDCmt              As String
+Dim vEDCmt              As String
+
+Dim vEnv                As String
+Dim vTechImpt           As String
+Dim vRelType            As String
+
+    ' to add additional condition when the start and end date is not date
+    With ws_dcrfOne
+        If IsDate(.Cells(FoundCell.Row, startDateIndex)) Then
+            If IsDate(ws_changeRegister.Cells(pRow, crStartDateIndex)) Then
+                If DateDiff("s", .Cells(FoundCell.Row, startDateIndex), ws_changeRegister.Cells(pRow, crStartDateIndex)) <> 0 Then
+                    isUpdated = True
+                    isDateChanged = True
+                    xcrfVal = xcrfVal & Mid(colName, startDateIndex, 1) & ","
+                    xcrfStr = xcrfStr & "START DATE Amended from " & Format(.Cells(FoundCell.Row, startDateIndex)) & " ,to " & Format(ws_changeRegister.Cells(pRow, crStartDateIndex))
+                    .Cells(FoundCell.Row, startDateIndex) = ws_changeRegister.Cells(pRow, crStartDateIndex)
+                    ' to update the DCRF date dcrfIdIndex
+                    .Cells(FoundCell.Row, dcrfIdIndex) = DateValue(ws_changeRegister.Cells(pRow, crStartDateIndex))
+                End If
+            End If
+        ElseIf IsDate(ws_changeRegister.Cells(pRow, crStartDateIndex)) Then
+            .Cells(FoundCell.Row, startDateIndex) = ws_changeRegister.Cells(pRow, crStartDateIndex)
+            ' to update the DCRF date dcrfIdIndex
+            .Cells(FoundCell.Row, dcrfIdIndex) = DateValue(ws_changeRegister.Cells(pRow, crStartDateIndex))
+                    
+        End If
+                
+        If IsDate(.Cells(FoundCell.Row, endDateIndex)) Then
+            If IsDate(ws_changeRegister.Cells(pRow, crEndDateIndex)) Then
+                If DateDiff("s", .Cells(FoundCell.Row, endDateIndex), ws_changeRegister.Cells(pRow, crEndDateIndex)) <> 0 Then
+                    isUpdated = True
+                    isDateChanged = True
+                    xcrfVal = xcrfVal & Mid(colName, endDateIndex, 1) & ","
+                    xcrfStr = xcrfStr & "-->END DATE Amended from " & Format(.Cells(FoundCell.Row, endDateIndex)) & " ,to " & Format(ws_changeRegister.Cells(pRow, crEndDateIndex))
+                    .Cells(FoundCell.Row, endDateIndex) = ws_changeRegister.Cells(pRow, crEndDateIndex)
+                End If
+            End If
+        ElseIf IsDate(ws_changeRegister.Cells(pRow, crEndDateIndex)) Then
+            .Cells(FoundCell.Row, endDateIndex) = ws_changeRegister.Cells(pRow, crEndDateIndex)
+        End If
+                
+        If StrComp(.Cells(FoundCell.Row, chgTitleIndex), ws_changeRegister.Cells(pRow, crChgTitleIndex), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, chgTitleIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->CHG TITLE Amended from " & .Cells(FoundCell.Row, chgTitleIndex) & " ,to " & ws_changeRegister.Cells(pRow, crChgTitleIndex)
+            .Cells(FoundCell.Row, chgTitleIndex) = ws_changeRegister.Cells(pRow, crChgTitleIndex)
+            
+        End If
+
+        If StrComp(CStr(.Cells(FoundCell.Row, hpsmChgIndex)), CStr(ws_changeRegister.Cells(pRow, crHpsmChgIndex)), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, hpsmChgIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->HPSM CHG Amended from " & .Cells(FoundCell.Row, hpsmChgIndex) & " ,to " & ws_changeRegister.Cells(pRow, crHpsmChgIndex)
+            .Cells(FoundCell.Row, hpsmChgIndex) = CStr(ws_changeRegister.Cells(pRow, crHpsmChgIndex).Text)
+        End If
+                
+        If StrComp(CStr(.Cells(FoundCell.Row, remedyChgIndex)), CStr(ws_changeRegister.Cells(pRow, crRemedyChgIndex)), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, remedyChgIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->REMEDY CHG Amended from " & .Cells(FoundCell.Row, remedyChgIndex) & " ,to " & ws_changeRegister.Cells(pRow, crRemedyChgIndex)
+            .Cells(FoundCell.Row, remedyChgIndex) = CStr(ws_changeRegister.Cells(pRow, crRemedyChgIndex))
+        End If
+        If StrComp(CStr(.Cells(FoundCell.Row, jiraChgIndex)), CStr(ws_changeRegister.Cells(pRow, crJiraChgIndex)), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, jiraChgIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->JIRA CHG Amended from " & .Cells(FoundCell.Row, jiraChgIndex) & " ,to " & ws_changeRegister.Cells(pRow, crJiraChgIndex)
+            .Cells(FoundCell.Row, jiraChgIndex) = CStr(ws_changeRegister.Cells(pRow, crJiraChgIndex))
+                    
+        End If
+        
+        If StrComp(CStr(.Cells(FoundCell.Row, sm4ChgIndex)), CStr(ws_changeRegister.Cells(pRow, crSm4ChgIndex)), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, sm4ChgIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->SM4 CHG Amended from " & .Cells(FoundCell.Row, sm4ChgIndex) & " ,to " & ws_changeRegister.Cells(pRow, crSm4ChgIndex)
+            .Cells(FoundCell.Row, sm4ChgIndex) = CStr(ws_changeRegister.Cells(pRow, crSm4ChgIndex))
+                    
+        End If
+        If StrComp(CStr(.Cells(FoundCell.Row, sm9ChgIndex)), CStr(ws_changeRegister.Cells(pRow, crSm9ChgIndex)), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, sm9ChgIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->SM9 CHG Amended from " & .Cells(FoundCell.Row, sm9ChgIndex) & " ,to " & ws_changeRegister.Cells(pRow, crSm9ChgIndex)
+            .Cells(FoundCell.Row, sm9ChgIndex).Value = CStr(ws_changeRegister.Cells(pRow, crSm9ChgIndex))
+                    
+        End If
+        If StrComp(.Cells(FoundCell.Row, salsaId2Index), ws_changeRegister.Cells(pRow, crAppIdIndex), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, salsaId2Index, 1) & ","
+            xcrfStr = xcrfStr & "-->SALSA ID2 Amended from " & .Cells(FoundCell.Row, salsaId2Index) & " ,to " & ws_changeRegister.Cells(pRow, crAppIdIndex)
+            
+            .Cells(FoundCell.Row, salsaId2Index).Formula = "=IFERROR(INDEX('SALSA IDs'!A:A,MATCH(U" & FoundCell.Row & ",'SALSA IDs'!B:B,0)),P" & FoundCell.Row & ")"
+        End If
+        If StrComp(.Cells(FoundCell.Row, appChgIndex), ws_changeRegister.Cells(pRow, crAppNameIndex), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, appChgIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->APP CHG Amended from " & .Cells(FoundCell.Row, appChgIndex) & " ,to " & ws_changeRegister.Cells(pRow, crAppNameIndex)
+            .Cells(FoundCell.Row, appChgIndex) = ws_changeRegister.Cells(pRow, crAppNameIndex)
+                    
+        End If
+                
+        isValidFailed = False
+        vEnv = ""
+        vTechImpt = ""
+        vRelType = ""
+
+        If StrComp(.Cells(FoundCell.Row, envIndex), ws_changeRegister.Cells(pRow, crEnvIndex), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, envIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->ENV Amended from " & .Cells(FoundCell.Row, envIndex) & " ,to " & ws_changeRegister.Cells(pRow, crEnvIndex)
+            ' Code to validate whether this value is confirmed to the Data validation
+            If Validate_Data(ws_changeRegister.Cells(pRow, crEnvIndex), envRng) <> 0 Then
+                .Cells(FoundCell.Row, envIndex) = ws_changeRegister.Cells(pRow, crEnvIndex)
+                vEnv = "FINE"
+            Else
+                isValidFailed = True
+                vEnv = ws_changeRegister.Cells(pRow, crEnvIndex)
+            End If
+        Else
+            If Validate_Data(ws_changeRegister.Cells(pRow, crEnvIndex), envRng) <> 0 Then
+                .Cells(FoundCell.Row, envIndex) = ws_changeRegister.Cells(pRow, crEnvIndex)
+                vEnv = "FINE"
+            Else
+                isValidFailed = True
+                vEnv = ws_changeRegister.Cells(pRow, crEnvIndex)
+            End If
+                    
+        End If
+        If StrComp(.Cells(FoundCell.Row, techImpIndex), ws_changeRegister.Cells(pRow, crTechImpIndex), vbTextCompare) <> 0 Then
+                
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, techImpIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->TECHNICAL IMPACT Amended from " & .Cells(FoundCell.Row, techImpIndex) & " ,to " & ws_changeRegister.Cells(pRow, crTechImpIndex)
+            ' Code to validate whether this value is confirmed to the Data validation
+ 
+  
+                    
+            If Validate_Data(ws_changeRegister.Cells(pRow, crTechImpIndex), techImpRng) <> 0 Then
+                .Cells(FoundCell.Row, techImpIndex) = ws_changeRegister.Cells(pRow, crTechImpIndex)
+                vTechImpt = "FINE"
+            Else
+                isValidFailed = True
+                vTechImpt = ws_changeRegister.Cells(pRow, crTechImpIndex)
+            End If
+        Else
+            If Validate_Data(ws_changeRegister.Cells(pRow, crTechImpIndex), techImpRng) <> 0 Then
+                .Cells(FoundCell.Row, techImpIndex) = ws_changeRegister.Cells(pRow, crTechImpIndex)
+                vTechImpt = "FINE"
+            Else
+                isValidFailed = True
+                vTechImpt = ws_changeRegister.Cells(pRow, crTechImpIndex)
+            End If
+                        
+        End If
+        If StrComp(.Cells(FoundCell.Row, releaseTypeIndex), ws_changeRegister.Cells(pRow, crRelTypeIndex), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, releaseTypeIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->RELEASE TYPE Amended from " & .Cells(FoundCell.Row, releaseTypeIndex) & " ,to " & ws_changeRegister.Cells(pRow, crRelTypeIndex)
+            ' Code to validate whether this value is confirmed to the Data validation
+            
+            If Validate_Data(ws_changeRegister.Cells(pRow, crRelTypeIndex), relTypeRng) <> 0 Then
+                .Cells(FoundCell.Row, releaseTypeIndex) = ws_changeRegister.Cells(pRow, crRelTypeIndex)
+                vRelType = "FINE"
+            Else
+                isValidFailed = True
+                vRelType = ws_changeRegister.Cells(pRow, crRelTypeIndex)
+            End If
+        Else
+            If Validate_Data(ws_changeRegister.Cells(pRow, crRelTypeIndex), relTypeRng) <> 0 Then
+                .Cells(FoundCell.Row, releaseTypeIndex) = ws_changeRegister.Cells(pRow, crRelTypeIndex)
+                vRelType = "FINE"
+            Else
+                isValidFailed = True
+                vRelType = ws_changeRegister.Cells(pRow, crRelTypeIndex)
+            End If
+                
+        End If
+            
+        ' Function to update the error Message
+        If isValidFailed Then
+            Call WriteDataValError(uid, .Cells(FoundCell.Row, startDateIndex), vEnv, vTechImpt, vRelType)
+        End If
+        
+        
+        If StrComp(.Cells(FoundCell.Row, highLevelIndex), ws_changeRegister.Cells(pRow, crHighSumIndex), vbTextCompare) <> 0 Then
+            isUpdated = True
+            xcrfVal = xcrfVal & Mid(colName, highLevelIndex, 1) & ","
+            xcrfStr = xcrfStr & "-->HIGH LEVEL SUMMARY Amended from " & .Cells(FoundCell.Row, highLevelIndex) & " ,to " & ws_changeRegister.Cells(pRow, crHighSumIndex)
+            .Cells(FoundCell.Row, highLevelIndex) = ws_changeRegister.Cells(pRow, crHighSumIndex)
+        End If
+            
+        If StrComp(.Cells(FoundCell.Row, dcrfStatusIndex), ws_changeRegister.Cells(pRow, crDcrfStatusIndex), vbTextCompare) <> 0 Then
+        
+            isUpdated = True
+            
+            xcrfVal = xcrfVal & Mid(colName, dcrfStatusIndex, 2) & ","
+            xcrfStr = xcrfStr & "-->DCRF SUMMARY Amended from " & Format(.Cells(FoundCell.Row, dcrfStatusIndex)) & " ,to " & Format(ws_changeRegister.Cells(pRow, crDcrfStatusIndex))
+        End If
+            
+            
+        
+        If IsDate(.Cells(FoundCell.Row, startDateIndex)) Then
+
+            pWeek = DateDiff("ww", Now(), .Cells(FoundCell.Row, startDateIndex))
+    
+            If .Cells(FoundCell.Row, hpsmChgIndex) = "" And .Cells(FoundCell.Row, remedyChgIndex) = "" And .Cells(FoundCell.Row, jiraChgIndex) = "" And .Cells(FoundCell.Row, sm4ChgIndex) = "" And .Cells(FoundCell.Row, sm9ChgIndex) = "" And pWeek >= 0 And pWeek <= 4 Then
+                Call WriteChgError(pUid, .Cells(FoundCell.Row, startDateIndex), "No change raised, and you are within " & pWeek & " weeks of your delivery", pWeek)
+            End If
+                        
+        End If
+
+        
+             
+
+             
+        If isDateChanged Then
+            .Cells(FoundCell.Row, dcrfAssIndex) = "M" ' to notify Date has been changed.
+            
+            .Cells(FoundCell.Row, dcrfStatusIndex) = ""
+            .Cells(FoundCell.Row, dcrfDateIndex) = ""
+        End If
+        
+        ' To check DATE Error
+            
+        vSDCmt = ""
+        
+        If .Cells(FoundCell.Row, startDateIndex) = "" Then
+            vSDCmt = "START DATE is missing"
+        ElseIf IsDate(.Cells(FoundCell.Row, startDateIndex)) Then
+            If Hour(.Cells(FoundCell.Row, startDateIndex)) < 22 And Hour(.Cells(FoundCell.Row, startDateIndex)) > 6 Then
+                If .Cells(FoundCell.Row, dcrfStatusIndex) <> "Approved" Or .Cells(FoundCell.Row, dcrfStatusIndex) <> "Rejected" Or .Cells(FoundCell.Row, dcrfAssIndex) <> "C" Or .Cells(FoundCell.Row, dcrfAssIndex) <> "CAN" Then
+                    vSDCmt = "START TIME Requires confirmation from the project that window is correct - if not then requires an update"
+                End If
+            End If
+        Else
+            vSDCmt = "START DATE is not in correct format"
+        End If
+        
+        vEDCmt = ""
+        If .Cells(FoundCell.Row, endDateIndex) = "" Then
+            vEDCmt = "END DATE is missing"
+        ElseIf IsDate(.Cells(FoundCell.Row, endDateIndex)) Then
+            
+            If Hour(.Cells(FoundCell.Row, endDateIndex)) < 22 And Hour(.Cells(FoundCell.Row, endDateIndex)) > 6 Then
+                If .Cells(FoundCell.Row, dcrfStatusIndex) <> "Approved" Or .Cells(FoundCell.Row, dcrfStatusIndex) <> "Rejected" Or .Cells(FoundCell.Row, dcrfAssIndex) <> "C" Or .Cells(FoundCell.Row, dcrfAssIndex) <> "CAN" Then
+                    vEDCmt = "END TIME Requires confirmation from the project that window is correct - if not then requires an update"
+                End If
+            End If
+        Else
+            vEDCmt = "END DATE is not in correct format"
+        End If
+        
+        If Not IsDate(.Cells(FoundCell.Row, startDateIndex)) Then
+        ElseIf DateDiff("s", .Cells(FoundCell.Row, startDateIndex), Now()) > 0 And .Cells(FoundCell.Row, dcrfAssIndex) <> "AA" And .Cells(FoundCell.Row, dcrfAssIndex) <> "CAN" Then
+            If vSDCmt <> "" Or vEDCmt <> "" Then
+                'Call WriteInvalidDateError(pUid, Format(.Cells(FoundCell.Row, startDateIndex), "dd/mm/yyyy  hh:mm:ss"), Format(.Cells(FoundCell.Row, endDateIndex), "dd/mm/yyyy  hh:mm:ss"), vSDCmt & " - " & vEDCmt)
+                Call WriteInvalidDateError(pUid, .Cells(FoundCell.Row, startDateIndex), .Cells(FoundCell.Row, endDateIndex), vSDCmt & " : " & vEDCmt)
+            End If
+        End If
+
+            
+        If isUpdated And (.Cells(FoundCell.Row, dcrfStatusIndex) = "Approved") Then
+            Debug.Print ("DCRF STATUS index" + .Cells(FoundCell.Row, dcrfStatusIndex))
+            Debug.Print ("DCRF STATUS index" + .Cells(FoundCell.Row, dcrfAssIndex))
+            .Cells(FoundCell.Row, commentsIndex) = cmtDate + ": previousely " + .Cells(FoundCell.Row, dcrfStatusIndex) + " on " + Format(.Cells(FoundCell.Row, dcrfDateIndex), "dd-mmm-yy") + " " + vbCrLf + .Cells(FoundCell.Row, commentsIndex)
+            .Cells(FoundCell.Row, xRefIndex) = .Cells(FoundCell.Row, xRefIndex) + ", Previously Approved on DCRF"
+
+        End If
+           
+        'to update the XCRF value post the comparison
+        '.Cells(FoundCell.Row, xRefIndex) = xcrfVal
+        .Cells(FoundCell.Row, xRefIndex) = "'" + xcrfStr
+           
+        'to compare the update/amended records
+        If Not isUpdated Then
+            .Cells(FoundCell.Row, xRefIndex).Interior.Color = RGB(0, 0, 255) 'to change the colour index to Blue as No change
+            
+        ElseIf .Cells(FoundCell.Row, dcrfStatusIndex) = "Approved" Then
+            .Cells(FoundCell.Row, xRefIndex).Interior.Color = RGB(255, 0, 0) ' to change the colour to Red
+                
+        Else
+            .Cells(FoundCell.Row, xRefIndex).Interior.Color = RGB(255, 191, 0) 'to change the colour index to Amber
+        End If
+            
+        ' to check whether the crRelStatusIndex is CAN
+        If ws_changeRegister.Cells(pRow, crRelStatusIndex) = "Cancelled" Then
+            .Cells(FoundCell.Row, dcrfAssIndex) = "CAN"
+        ElseIf ws_changeRegister.Cells(pRow, crRelStatusIndex) = "Delivered" Then
+            .Cells(FoundCell.Row, dcrfAssIndex) = "C"
+        End If
+    End With
+
+End Sub
+
+------------------
+Create a module with the below name and copy the code
+
+Func_Validations
+================
+
+Option Explicit
+
+Function Validate_Data(pVal As String, pRng As Range) As Integer
+
+Dim Rng As Range
+
+Set Rng = Nothing
+
+If pVal <> "" Then
+    With pRng
+    
+        Set Rng = .Find(What:=pVal, _
+                        After:=.Cells(.Cells.Count), _
+                        LookIn:=xlValues, _
+                        LookAt:=xlWhole, _
+                        SearchOrder:=xlByRows, _
+                        SearchDirection:=xlNext, _
+                        MatchCase:=False)
+                        
+        If Not Rng Is Nothing Then
+            Validate_Data = Rng.Column
+        Else
+            Validate_Data = 0
+        End If
+    End With
+Else
+    Validate_Data = 0
+End If
+    
+End Function
+
+
+------------------
+
+Create a module with the below name and copy the code
+
+Func_WriteErrMsg
+====================
+Option Explicit
+'----------------
+' Function to Clear all the error sheets
+'----------------
+Sub ClearErrors()
+Debug.Print ("Entering ClearErrors")
+Dim vErrRowCnt  As Long
+
+With ws_dataError
+
+    vErrRowCnt = WorksheetFunction.CountA(.Range("ID_UID").EntireColumn)
+ 
+    If vErrRowCnt > 1 Then
+        .Rows(2 & ":" & vErrRowCnt).Delete
+    End If
+
+End With
+
+With ws_appidErr
+
+    vErrRowCnt = WorksheetFunction.CountA(.Range("IA_UID").EntireColumn)
+ 
+    If vErrRowCnt > 1 Then
+        .Rows(2 & ":" & vErrRowCnt).Delete
+    End If
+
+End With
+
+With ws_dateError
+
+    vErrRowCnt = WorksheetFunction.CountA(.Range("DE_UID").EntireColumn)
+ 
+    If vErrRowCnt > 1 Then
+        .Rows(2 & ":" & vErrRowCnt).Delete
+    End If
+
+End With
+
+With ws_Error
+
+    vErrRowCnt = WorksheetFunction.CountA(.Range("ERR_UID").EntireColumn)
+ 
+    If vErrRowCnt > 1 Then
+        .Rows(2 & ":" & vErrRowCnt).Delete
+    End If
+
+End With
+
+With ws_ChgErr
+
+    vErrRowCnt = WorksheetFunction.CountA(.Range("CHG_UID").EntireColumn)
+ 
+    If vChgRowCnt > 1 Then
+        .Rows(2 & ":" & vChgRowCnt).Delete
+    End If
+
+End With
+
+Debug.Print ("Error Worksheets Cleared")
+
+End Sub
+
+'----------------
+' Function to Update Wrror message
+'----------------
+Sub WriteError(pUid As String, pErrMsg As String)
+ 
+vErrRow = vErrRow + 1
+With ws_Error
+    .Cells(vErrRow, 1).Value = pUid
+    .Cells(vErrRow, 2).Value = pErrMsg
+End With
+
+End Sub
+'----------------
+' Function to Update Data Validation Errors
+'----------------
+
+Sub WriteDataValError(pUid As String, pStartDate As String, pEnv As String, pTechImp As String, pRT As String)
+
+vDataerrRow = vDataerrRow + 1
+
+Dim env, techimp, rt As String
+
+Dim prjId As Integer
+prjId = Left(pUid, 4)
+
+Set FoundCellFMO = Nothing
+Set FoundCellFMO = ws_fmoApps.Cells.Find(What:=prjId, After:=ws_fmoApps.Cells(1, 1), LookIn:=xlValues, LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=True, SearchFormat:=False)
+
+
+If pEnv = "" Then
+    env = "Empty"
+ElseIf pEnv = "FINE" Then
+    env = ""
+Else
+    env = pEnv
+End If
+
+If pTechImp = "" Then
+    techimp = "Empty"
+ElseIf pTechImp = "FINE" Then
+    techimp = ""
+Else
+    techimp = pTechImp
+End If
+
+If pRT = "" Then
+    rt = "Empty"
+ElseIf pRT = "FINE" Then
+    rt = ""
+Else
+    rt = pRT
+End If
+
+With ws_dataError
+
+If Not FoundCellFMO Is Nothing Then
+
+    .Cells(vDataerrRow, 1).Value = pUid
+    .Cells(vDataerrRow, 2).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 6)
+    .Cells(vDataerrRow, 3).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 8)
+    .Cells(vDataerrRow, 4).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 1)
+    .Cells(vDataerrRow, 5).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 2)
+    .Cells(vDataerrRow, 6).Value = env
+    .Cells(vDataerrRow, 7).Value = techimp
+    .Cells(vDataerrRow, 8).Value = rt
+    .Cells(vDataerrRow, 9).Value = pStartDate
+Else
+    .Cells(vDataerrRow, 1).Value = pUid
+    .Cells(vDataerrRow, 6).Value = env
+    .Cells(vDataerrRow, 7).Value = techimp
+    .Cells(vDataerrRow, 8).Value = rt
+    .Cells(vDataerrRow, 9).Value = pStartDate
+End If
+
+End With
+
+End Sub
+'----------------
+' Function to Update APPID Errors
+'----------------
+Sub WriteAPPIDError(pUid As String, pStartDate As String, pAppId As String, pCmt As String, pWeek As Long)
+ 
+vAppIdRow = vAppIdRow + 1
+
+Dim prjId As Integer
+prjId = Left(pUid, 4)
+
+Set FoundCellFMO = Nothing
+Set FoundCellFMO = ws_fmoApps.Cells.Find(What:=prjId, After:=ws_fmoApps.Cells(1, 1), LookIn:=xlValues, LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=True, SearchFormat:=False)
+
+With ws_appidErr
+If Not FoundCellFMO Is Nothing Then
+    .Cells(vAppIdRow, 1).Value = pUid
+    .Cells(vAppIdRow, 2) = Trim(pStartDate)
+    .Cells(vAppIdRow, 3).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 6)
+    .Cells(vAppIdRow, 4).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 8)
+    .Cells(vAppIdRow, 5).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 1)
+    .Cells(vAppIdRow, 6).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 2)
+    .Cells(vAppIdRow, 7).Value = pAppId
+    .Cells(vAppIdRow, 8).Value = pCmt
+    'If pWeek <= 3 Then
+     '   .Cells(vAppIdRow, 8).Font.Color = vbRed
+    'ElseIf pWeek = 4 Then
+    '    .Cells(vAppIdRow, 8).Font.Color = RGB(255, 191, 0)
+    'End If
+    
+    '.Cells(vAppIdRow, 8).Value = pCmt
+Else
+
+End If
+
+End With
+
+End Sub
+'----------------
+' Function to Update Change Errors
+'----------------
+Sub WriteChgError(pUid As String, pStartDate As String, pCmt As String, pWeek As Long)
+ 
+vChgRowCnt = vChgRowCnt + 1
+
+Dim prjId As Integer
+prjId = Left(pUid, 4)
+
+Set FoundCellFMO = Nothing
+Set FoundCellFMO = ws_fmoApps.Cells.Find(What:=prjId, After:=ws_fmoApps.Cells(1, 1), LookIn:=xlValues, LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=True, SearchFormat:=False)
+
+With ws_ChgErr
+If Not FoundCellFMO Is Nothing Then
+    .Cells(vChgRowCnt, 1).Value = pUid
+    .Cells(vChgRowCnt, 2) = Trim(pStartDate)
+    .Cells(vChgRowCnt, 3).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 6)
+    .Cells(vChgRowCnt, 4).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 8)
+    .Cells(vChgRowCnt, 5).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 1)
+    .Cells(vChgRowCnt, 6).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 2)
+    '.Cells(vAppIdRow, 7).Value = pAppId
+    .Cells(vChgRowCnt, 7).Value = pCmt
+    If pWeek <= 3 Then
+        .Cells(vAppIdRow, 8).Font.Color = vbRed
+    ElseIf pWeek = 4 Then
+        .Cells(vAppIdRow, 8).Font.Color = RGB(255, 191, 0)
+    End If
+    
+    '.Cells(vAppIdRow, 8).Value = pCmt
+Else
+
+End If
+
+End With
+
+End Sub
+'----------------
+' Function to Update Invalid DATE Errors
+
+'----------------
+Sub WriteInvalidDateError(pUid As String, pStartDate As String, pEndDate As String, pCmt As String)
+ 
+vDateErrRow = vDateErrRow + 1
+
+Dim prjId As Integer
+prjId = Left(pUid, 4)
+
+Set FoundCellFMO = Nothing
+Set FoundCellFMO = ws_fmoApps.Cells.Find(What:=prjId, After:=ws_fmoApps.Cells(1, 1), LookIn:=xlValues, LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, MatchCase:=True, SearchFormat:=False)
+
+With ws_dateError
+    .Cells(vDateErrRow, 1).Value = pUid
+    .Cells(vDateErrRow, 2).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 6)
+    .Cells(vDateErrRow, 3).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 8)
+    .Cells(vDateErrRow, 4).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 1)
+    .Cells(vDateErrRow, 5).Value = ws_fmoApps.Cells(FoundCellFMO.Row, 2)
+    .Cells(vDateErrRow, 6) = Trim(pStartDate)
+    .Cells(vDateErrRow, 7) = Trim(pEndDate)
+    .Cells(vDateErrRow, 8).Value = pCmt
+End With
+
+End Sub
+
+
+
+
+
+

@@ -1,0 +1,16 @@
+Project Scope : 
+===============
+This is a VBA programming in excel to collect records from various project status work sheets in share point and to produce a change register report which will help schedule changes. This  will be quite useful when a large migration program involves multiple streams of work packages where the release scheduling a major concern. 
+
+The program would involve some validations to process records and to provide a report which will help for producing heatmap reporting.
+
+The configuration file would look like below
+
+S.No	Attribute	Value	Comments
+1	Change_Register_Path	Folder_Path	
+2	Change_Register_File_Format	Change_Register_Path	
+3	DCRF_Path	Folder_Path	
+4	DCRF_W0_File_Format	File_Name_last_week_report(base Reporting)	
+5	DCRF_W1_File_Format	New_file_to_be_generated	
+			
+			
